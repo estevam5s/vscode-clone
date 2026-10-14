@@ -1,0 +1,43 @@
+{
+  "name": "vscode-clone",
+  "version": "1.0.0",
+  "description": "VS Code clone built from REA reverse engineering analysis",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.vscode-clone.app",
+    "productName": "Code Clone",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "author": "estevam5s",
+  "license": "MIT",
+  "dependencies": {
+    "monaco-editor": "^0.52.2",
+    "xterm": "^5.5.0",
+    "xterm-addon-fit": "^0.10.0",
+    "node-pty": "^1.0.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.0",
+    "electron-builder": "^25.1.8"
+  }
+}

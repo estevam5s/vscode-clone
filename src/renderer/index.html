@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:;">
+  <title>Code Clone</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Title Bar (macOS-style) -->
+  <div id="titlebar">
+    <div class="titlebar-drag"></div>
+    <div class="titlebar-title" id="titlebar-text">Code Clone</div>
+  </div>
+
+  <!-- Main Layout -->
+  <div id="app">
+    <!-- Activity Bar (left icon strip) -->
+    <div id="activity-bar">
+      <div class="activity-item active" data-panel="explorer" title="Explorer (⌘⇧E)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+        </svg>
+      </div>
+      <div class="activity-item" data-panel="search" title="Search (⌘⇧F)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+      </div>
+      <div class="activity-item" data-panel="git" title="Source Control (⌘⇧G)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="5" r="3"/><circle cx="12" cy="19" r="3"/><line x1="12" y1="8" x2="12" y2="16"/>
+        </svg>
+      </div>
+      <div class="activity-item" data-panel="extensions" title="Extensions (⌘⇧X)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </div>
+      <div class="activity-spacer"></div>
+      <div class="activity-item" data-action="settings" title="Settings (⌘,)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">EXPLORER</span>
+      </div>
+      <div id="sidebar-content">
+        <div class="sidebar-section">
+          <div class="section-header" id="open-folder-header">
+            <span>OPEN EDITORS</span>
+          </div>
+          <div id="open-editors-list" class="section-body"></div>
+        </div>
+        <div class="sidebar-section">
+          <div class="section-header">
+            <span id="folder-name">NO FOLDER OPENED</span>
+          </div>
+          <div id="file-tree" class="section-body">
+            <div class="empty-state">
+              <button id="btn-open-folder" class="btn-primary">Open Folder</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resize handle for sidebar -->
+    <div id="sidebar-resize" class="resize-handle-v"></div>
+
+    <!-- Editor Area -->
+    <div id="editor-area">
+      <!-- Tabs -->
+      <div id="tabs-bar">
+        <div id="tabs-container"></div>
+      </div>
+      <!-- Breadcrumbs -->
+      <div id="breadcrumbs"></div>
+      <!-- Editor Container -->
+      <div id="editor-container">
+        <div id="welcome-screen">
+          <h1>Code Clone</h1>
+          <p class="subtitle">Reverse-engineered from Visual Studio Code using REA</p>
+          <div class="welcome-actions">
+            <div class="welcome-action" id="welcome-open-file">
+              <span class="keybinding">⌘O</span> Open File
+            </div>
+            <div class="welcome-action" id="welcome-open-folder">
+              <span class="keybinding">⌘⇧O</span> Open Folder
+            </div>
+            <div class="welcome-action" id="welcome-new-file">
+              <span class="keybinding">⌘N</span> New File
+            </div>
+            <div class="welcome-action" id="welcome-terminal">
+              <span class="keybinding">⌘`</span> Toggle Terminal
+            </div>
+          </div>
+          <div class="welcome-info">
+            <p>Built by analyzing VS Code v1.139.1 with REA</p>
+            <p>5,966 files parsed · 29M AST nodes · 2,071 modules discovered</p>
+          </div>
+        </div>
+        <div id="monaco-editor" style="display:none;"></div>
+      </div>
+
+      <!-- Terminal resize handle -->
+      <div id="terminal-resize" class="resize-handle-h" style="display:none;"></div>
+
+      <!-- Terminal Panel -->
+      <div id="terminal-panel" style="display:none;">
+        <div class="terminal-header">
+          <div class="terminal-tabs">
+            <span class="terminal-tab active">Terminal</span>
+          </div>
+          <div class="terminal-actions">
+            <button class="icon-btn" id="btn-new-terminal" title="New Terminal">+</button>
+            <button class="icon-btn" id="btn-kill-terminal" title="Kill Terminal">×</button>
+          </div>
+        </div>
+        <div id="terminal-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div class="status-left">
+      <span class="status-item" id="status-branch">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><circle cx="12" cy="19" r="3"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+        main
+      </span>
+      <span class="status-item" id="status-errors">0 errors</span>
+      <span class="status-item" id="status-warnings">0 warnings</span>
+    </div>
+    <div class="status-right">
+      <span class="status-item" id="status-cursor">Ln 1, Col 1</span>
+      <span class="status-item" id="status-indent">Spaces: 2</span>
+      <span class="status-item" id="status-encoding">UTF-8</span>
+      <span class="status-item" id="status-eol">LF</span>
+      <span class="status-item" id="status-language">Plain Text</span>
+    </div>
+  </div>
+
+  <!-- Command Palette -->
+  <div id="command-palette" style="display:none;">
+    <div class="palette-backdrop"></div>
+    <div class="palette-container">
+      <input type="text" id="palette-input" placeholder="Type a command..." autocomplete="off">
+      <div id="palette-results"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

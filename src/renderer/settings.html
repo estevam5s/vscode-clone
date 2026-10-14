@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Settings</title>
+  <style>
+    :root { --bg: #1e1e1e; --bg2: #252526; --border: #3e3e42; --text: #ccc; --text2: #969696; --accent: #007acc; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; }
+    h1 { font-size: 20px; font-weight: 400; margin-bottom: 20px; }
+    .search { width: 100%; padding: 8px 12px; background: #3c3c3c; border: 1px solid var(--border); color: var(--text); font-size: 14px; border-radius: 4px; margin-bottom: 24px; outline: none; }
+    .search:focus { border-color: var(--accent); }
+    .group { margin-bottom: 24px; }
+    .group-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2d2d2d; }
+    .setting-info { flex: 1; }
+    .setting-label { font-size: 14px; margin-bottom: 2px; }
+    .setting-desc { font-size: 12px; color: var(--text2); }
+    .setting-control { margin-left: 16px; }
+    select, input[type="number"] { background: #3c3c3c; border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 3px; font-size: 13px; }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <h1>Settings</h1>
+  <input type="text" class="search" placeholder="Search settings...">
+  <div class="group">
+    <div class="group-title">Editor</div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Font Size</div><div class="setting-desc">Controls the font size in pixels.</div></div>
+      <div class="setting-control"><input type="number" value="14" min="8" max="72"></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Tab Size</div><div class="setting-desc">The number of spaces a tab is equal to.</div></div>
+      <div class="setting-control"><input type="number" value="2" min="1" max="8"></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Word Wrap</div><div class="setting-desc">Controls how lines should wrap.</div></div>
+      <div class="setting-control"><select><option>off</option><option>on</option><option>wordWrapColumn</option><option>bounded</option></select></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Minimap</div><div class="setting-desc">Controls whether the minimap is shown.</div></div>
+      <div class="setting-control"><input type="checkbox" checked></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Bracket Pair Colorization</div><div class="setting-desc">Controls whether bracket pair colorization is enabled.</div></div>
+      <div class="setting-control"><input type="checkbox" checked></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Font Ligatures</div><div class="setting-desc">Enable/disable font ligatures.</div></div>
+      <div class="setting-control"><input type="checkbox" checked></div>
+    </div>
+  </div>
+  <div class="group">
+    <div class="group-title">Terminal</div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Font Size</div><div class="setting-desc">Controls the font size of the terminal.</div></div>
+      <div class="setting-control"><input type="number" value="13" min="8" max="72"></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Cursor Blink</div><div class="setting-desc">Controls whether the terminal cursor blinks.</div></div>
+      <div class="setting-control"><input type="checkbox" checked></div>
+    </div>
+  </div>
+  <div class="group">
+    <div class="group-title">Workbench</div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Color Theme</div><div class="setting-desc">Specifies the color theme.</div></div>
+      <div class="setting-control"><select><option>Dark+ (default dark)</option><option>Light+</option><option>Monokai</option><option>Solarized Dark</option></select></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info"><div class="setting-label">Icon Theme</div><div class="setting-desc">Specifies the file icon theme.</div></div>
+      <div class="setting-control"><select><option>Seti</option><option>Material</option><option>None</option></select></div>
+    </div>
+  </div>
+</body>
+</html>
