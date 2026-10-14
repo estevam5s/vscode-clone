@@ -129,6 +129,56 @@
     env: { color: '#ecd53f', letter: '.e' },
     lock: { color: '#888', letter: 'Lk' },
     gitignore: { color: '#f05032', letter: '.g' },
+    graphql: { color: '#e10098', letter: 'GQ' },
+    gql: { color: '#e10098', letter: 'GQ' },
+    prisma: { color: '#2d3748', letter: 'Pr' },
+    tf: { color: '#5c4ee5', letter: 'Tf' },
+    hcl: { color: '#5c4ee5', letter: 'Hc' },
+    zig: { color: '#f7a41d', letter: 'Zg' },
+    wasm: { color: '#654ff0', letter: 'Wm' },
+    astro: { color: '#ff5d01', letter: 'As' },
+    mdx: { color: '#fcb32c', letter: 'Mx' },
+    mjs: { color: '#f0db4f', letter: 'MJ' },
+    cjs: { color: '#f0db4f', letter: 'CJ' },
+    mts: { color: '#3178c6', letter: 'MT' },
+    cts: { color: '#3178c6', letter: 'CT' },
+    less: { color: '#1d365d', letter: 'Le' },
+    styl: { color: '#ff6347', letter: 'St' },
+    coffee: { color: '#244776', letter: 'Cf' },
+    elm: { color: '#60b5cc', letter: 'El' },
+    ex: { color: '#6e4a7e', letter: 'Ex' },
+    exs: { color: '#6e4a7e', letter: 'Ex' },
+    erl: { color: '#b83998', letter: 'Er' },
+    hs: { color: '#5e5086', letter: 'Hs' },
+    ml: { color: '#e98407', letter: 'ML' },
+    fs: { color: '#b845fc', letter: 'F#' },
+    clj: { color: '#db5855', letter: 'Cl' },
+    scala: { color: '#c22d40', letter: 'Sc' },
+    pl: { color: '#0298c3', letter: 'Pl' },
+    tex: { color: '#3d6117', letter: 'Tx' },
+    ini: { color: '#d1dbe0', letter: 'Ini' },
+    cfg: { color: '#d1dbe0', letter: 'Cf' },
+    bat: { color: '#c1f12e', letter: 'Bt' },
+    ps1: { color: '#012456', letter: 'PS' },
+    fish: { color: '#4aae47', letter: 'Fi' },
+    zsh: { color: '#89e051', letter: 'Zs' },
+    bash: { color: '#89e051', letter: 'Bs' },
+    makefile: { color: '#427819', letter: 'Mk' },
+    cmake: { color: '#064f8c', letter: 'CM' },
+    proto: { color: '#aac148', letter: 'Pb' },
+    sol: { color: '#aa6746', letter: 'So' },
+    v: { color: '#4FC1FF', letter: 'V' },
+    nim: { color: '#ffc200', letter: 'Nm' },
+    d: { color: '#ba595e', letter: 'D' },
+    m: { color: '#438eff', letter: 'Ob' },
+    h: { color: '#555555', letter: 'H' },
+    hpp: { color: '#f34b7d', letter: 'H+' },
+    pug: { color: '#a86454', letter: 'Pg' },
+    ejs: { color: '#a91e50', letter: 'EJ' },
+    hbs: { color: '#f0772b', letter: 'Hb' },
+    log: { color: '#999', letter: 'Lg' },
+    csv: { color: '#237346', letter: 'Cv' },
+    tsv: { color: '#237346', letter: 'Tv' },
   };
 
   function getLanguage(filePath) {
@@ -1577,8 +1627,35 @@
   function closePalette() {
     state.commandPaletteOpen = false;
     state.quickOpenMode = null;
+    state._quickPickCallback = null;
+    state._quickPickItems = null;
     const overlay = document.getElementById('command-palette');
     if (overlay) overlay.style.display = 'none';
+  }
+
+  function openQuickPick(options, placeholder, callback) {
+    const overlay = document.getElementById('command-palette');
+    if (!overlay) return;
+    state.commandPaletteOpen = true;
+    state.quickOpenMode = 'quickpick';
+    state._quickPickCallback = callback;
+    overlay.style.display = '';
+
+    const input = document.getElementById('palette-input');
+    if (input) {
+      input.value = '';
+      input.placeholder = placeholder || 'Select...';
+      input.focus();
+    }
+    state.paletteSelectedIndex = 0;
+    const items = options.map(opt => ({
+      label: opt,
+      detail: '',
+      action: () => { callback(opt); input.placeholder = ''; },
+    }));
+    state._quickPickItems = items;
+    state.paletteFilteredCommands = items;
+    renderPaletteResults(items);
   }
 
   function filterPalette() {
@@ -1588,6 +1665,16 @@
 
     const val = input.value;
     let items = [];
+
+    if (state.quickOpenMode === 'quickpick' && state._quickPickItems) {
+      const query = val.toLowerCase();
+      items = state._quickPickItems
+        .filter(c => !query || c.label.toLowerCase().includes(query));
+      state.paletteFilteredCommands = items;
+      state.paletteSelectedIndex = 0;
+      renderPaletteResults(items);
+      return;
+    }
 
     if (val.startsWith('>')) {
       state.quickOpenMode = 'commands';
@@ -1758,12 +1845,16 @@
   }
 
   async function gitCheckoutBranch() {
-    const branches = await window.git.branches();
-    const branch = prompt('Switch to branch:\n' + branches.join('\n'));
-    if (branch) {
-      await window.git.checkout(branch.trim());
-      refreshGitStatus();
+    const branches = await window.git.branches().catch(() => []);
+    if (!branches || branches.length === 0) {
+      showNotification('warning', 'No branches found');
+      return;
     }
+    openQuickPick(branches, 'Select a branch to checkout', async (branch) => {
+      await window.git.checkout(branch.trim().replace(/^\*\s*/, ''));
+      refreshGitStatus();
+      showNotification('info', `Switched to branch: ${branch.trim()}`);
+    });
   }
 
   function openSettingsTab() {
@@ -1873,15 +1964,15 @@
   }
 
   function cycleTheme() {
-    const themes = ['dark', 'light', 'high-contrast'];
-    const idx = themes.indexOf(state.theme);
-    state.theme = themes[(idx + 1) % themes.length];
-    document.body.className = 'theme-' + state.theme;
-    if (state.editor) {
+    const themes = ['Dark (Visual Studio)', 'Light (Visual Studio)', 'High Contrast'];
+    const themeMap = { 'Dark (Visual Studio)': 'dark', 'Light (Visual Studio)': 'light', 'High Contrast': 'high-contrast' };
+    openQuickPick(themes, 'Select Color Theme', (name) => {
+      state.theme = themeMap[name];
+      document.body.className = 'theme-' + state.theme;
       const monacoThemes = { dark: 'vscode-clone-dark', light: 'vscode-clone-light', 'high-contrast': 'vscode-clone-hc' };
-      monaco.editor.setTheme(monacoThemes[state.theme]);
-    }
-    showNotification('info', `Theme: ${state.theme}`);
+      if (state.editor) monaco.editor.setTheme(monacoThemes[state.theme]);
+      if (splitEditor) splitEditor.updateOptions({ theme: monacoThemes[state.theme] });
+    });
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -2285,13 +2376,32 @@
     if (warnEl) warnEl.addEventListener('click', () => showBottomPanel('problems'));
 
     const langEl = document.getElementById('status-language');
-    if (langEl) langEl.addEventListener('click', () => showNotification('info', 'Language mode selector'));
+    if (langEl) langEl.addEventListener('click', () => {
+      const languages = monaco.languages.getLanguages().map(l => l.id).sort();
+      openQuickPick(languages, 'Select Language Mode', (lang) => {
+        const model = state.editor?.getModel();
+        if (model) monaco.editor.setModelLanguage(model, lang);
+        const tab = state.tabs.find(t => t.id === state.activeTabId);
+        if (tab) tab.language = lang;
+        updateStatusBarLanguage();
+      });
+    });
 
     const encodingEl = document.getElementById('status-encoding');
-    if (encodingEl) encodingEl.addEventListener('click', () => showNotification('info', 'Encoding: UTF-8'));
+    if (encodingEl) encodingEl.addEventListener('click', () => {
+      const encodings = ['UTF-8', 'UTF-16 LE', 'UTF-16 BE', 'ISO 8859-1', 'Windows 1252', 'Shift JIS'];
+      openQuickPick(encodings, 'Select File Encoding', (enc) => {
+        encodingEl.textContent = enc;
+      });
+    });
 
     const eolEl = document.getElementById('status-eol');
-    if (eolEl) eolEl.addEventListener('click', () => showNotification('info', 'End of Line: LF'));
+    if (eolEl) eolEl.addEventListener('click', () => {
+      const current = eolEl.textContent === 'LF' ? 'CRLF' : 'LF';
+      eolEl.textContent = current;
+      const model = state.editor?.getModel();
+      if (model) model.setEOL(current === 'LF' ? monaco.editor.EndOfLineSequence.LF : monaco.editor.EndOfLineSequence.CRLF);
+    });
 
     const indentEl = document.getElementById('status-indent');
     if (indentEl) indentEl.addEventListener('click', () => {
