@@ -374,6 +374,7 @@
     renderTabs();
     renderOpenEditors();
     state.editor.focus();
+    applyGitGutterDecorations(tab);
   }
 
   function closeTab(id, force = false) {
@@ -381,7 +382,12 @@
     if (!tab) return;
 
     if (tab.modified && !force) {
-      showNotification('warning', `Do you want to save "${tab.name}"?`);
+      showNotification('warning', `Do you want to save changes to "${tab.name}"?`, 0, [
+        { label: 'Save', action: async () => { await window.fs.writeFile(tab.path, tab.content); closeTab(id, true); } },
+        { label: "Don't Save", action: () => closeTab(id, true) },
+        { label: 'Cancel', action: () => {} },
+      ]);
+      return;
     }
 
     const idx = state.tabs.indexOf(tab);
@@ -785,6 +791,52 @@
     [caseSensitive, wholeWord, useRegex].forEach(btn => {
       if (btn) btn.addEventListener('click', () => { btn.classList.toggle('active'); doSearch(); });
     });
+
+    const replaceAllBtn = document.getElementById('search-replace-all-btn');
+    if (replaceAllBtn) {
+      replaceAllBtn.addEventListener('click', async () => {
+        const query = input?.value;
+        const replacement = replaceInput?.value;
+        if (!query || replacement === undefined || replacement === null) return;
+        if (state.searchResults.length === 0) { showNotification('warning', 'No search results to replace'); return; }
+        let replaced = 0;
+        for (const result of state.searchResults) {
+          const content = await window.fs.readFile(result.path).catch(() => null);
+          if (content === null) continue;
+          let flags = 'g';
+          if (!caseSensitive?.classList.contains('active')) flags += 'i';
+          const re = useRegex?.classList.contains('active')
+            ? new RegExp(query, flags)
+            : new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+          const newContent = content.replace(re, replacement);
+          if (newContent !== content) {
+            await window.fs.writeFile(result.path, newContent);
+            replaced++;
+            const openTab = state.tabs.find(t => t.path === result.path);
+            if (openTab) {
+              openTab.content = newContent;
+              openTab.originalContent = newContent;
+              openTab.modified = false;
+              if (state.activeTabId === openTab.id && state.editor) {
+                openTab._settingContent = true;
+                state.editor.getModel()?.setValue(newContent);
+                openTab._settingContent = false;
+              }
+            }
+          }
+        }
+        showNotification('info', `Replaced in ${replaced} file(s)`);
+        doSearch();
+      });
+    }
+
+    const detailsToggle = document.getElementById('search-toggle-details');
+    if (detailsToggle) {
+      detailsToggle.addEventListener('click', () => {
+        const details = document.getElementById('search-details');
+        if (details) details.style.display = details.style.display === 'none' ? '' : 'none';
+      });
+    }
   }
 
   function renderSearchResults(results) {
@@ -1876,23 +1928,41 @@
   // ════════════════════════════════════════════════════════════════
   //  NOTIFICATIONS
   // ════════════════════════════════════════════════════════════════
-  function showNotification(type, message, timeout = 5000) {
+  function showNotification(type, message, timeout = 5000, actions = []) {
     const container = document.getElementById('notification-container');
     if (!container) return;
 
     const el = document.createElement('div');
     el.className = `notification notification-${type}`;
     const icons = { info: 'ⓘ', warning: '⚠', error: '⊘', success: '✓' };
+
+    let actionsHtml = '';
+    if (actions.length > 0) {
+      actionsHtml = '<div class="notification-actions">' +
+        actions.map((a, i) => `<button class="notification-action-btn" data-idx="${i}">${escapeHtml(a.label)}</button>`).join('') +
+        '</div>';
+    }
+
     el.innerHTML =
       `<span class="notification-icon">${icons[type] || 'ⓘ'}</span>` +
+      `<div class="notification-body">` +
       `<span class="notification-text">${escapeHtml(message)}</span>` +
+      actionsHtml +
+      `</div>` +
       `<span class="notification-close">&times;</span>`;
 
     el.querySelector('.notification-close').addEventListener('click', () => el.remove());
+    el.querySelectorAll('.notification-action-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        if (actions[idx]?.action) actions[idx].action();
+        el.remove();
+      });
+    });
     container.appendChild(el);
 
     setTimeout(() => el.classList.add('show'), 10);
-    if (timeout > 0) {
+    if (timeout > 0 && actions.length === 0) {
       setTimeout(() => {
         el.classList.remove('show');
         setTimeout(() => el.remove(), 300);
@@ -2012,6 +2082,48 @@
         hideContextMenu();
       }
     });
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  GIT GUTTER DECORATIONS
+  // ════════════════════════════════════════════════════════════════
+  let gutterDecorations = [];
+
+  async function applyGitGutterDecorations(tab) {
+    if (!state.editor || !state.isGitRepo || !tab.path) {
+      state.editor?.deltaDecorations(gutterDecorations, []);
+      gutterDecorations = [];
+      return;
+    }
+    const relativePath = state.rootFolder ? tab.path.replace(state.rootFolder + '/', '') : tab.path;
+    const diffText = await window.git.diff(relativePath).catch(() => '');
+    if (!diffText) {
+      state.editor.deltaDecorations(gutterDecorations, []);
+      gutterDecorations = [];
+      return;
+    }
+
+    const newDecorations = [];
+    const hunkRegex = /@@\s*-\d+(?:,\d+)?\s*\+(\d+)(?:,(\d+))?\s*@@/g;
+    let match;
+    while ((match = hunkRegex.exec(diffText)) !== null) {
+      const startLine = parseInt(match[1], 10);
+      const count = match[2] !== undefined ? parseInt(match[2], 10) : 1;
+      if (count === 0) {
+        newDecorations.push({
+          range: new monaco.Range(Math.max(1, startLine), 1, Math.max(1, startLine), 1),
+          options: { isWholeLine: true, linesDecorationsClassName: 'git-gutter-deleted' },
+        });
+      } else {
+        for (let i = 0; i < count; i++) {
+          newDecorations.push({
+            range: new monaco.Range(startLine + i, 1, startLine + i, 1),
+            options: { isWholeLine: true, linesDecorationsClassName: 'git-gutter-modified' },
+          });
+        }
+      }
+    }
+    gutterDecorations = state.editor.deltaDecorations(gutterDecorations, newDecorations);
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -2336,6 +2448,55 @@
   }
 
   // ════════════════════════════════════════════════════════════════
+  //  DEBUG CONSOLE REPL
+  // ════════════════════════════════════════════════════════════════
+  function setupDebugConsole() {
+    const input = document.getElementById('debug-console-input');
+    const log = document.getElementById('debug-console-log');
+    if (!input || !log) return;
+
+    const history = [];
+    let historyIdx = -1;
+
+    function appendLine(text, type = 'output') {
+      const el = document.createElement('div');
+      el.className = `debug-line debug-${type}`;
+      el.textContent = text;
+      log.appendChild(el);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const expr = input.value.trim();
+        if (!expr) return;
+        history.unshift(expr);
+        historyIdx = -1;
+        appendLine('> ' + expr, 'input');
+        input.value = '';
+        const result = await window.proc.exec(`node -e "try { console.log(JSON.stringify(eval(${JSON.stringify(expr)}), null, 2)) } catch(e) { console.error(e.message) }"`, state.rootFolder).catch(err => ({ stderr: err.message || String(err) }));
+        if (result.stdout) appendLine(result.stdout.trim(), 'output');
+        if (result.stderr) appendLine(result.stderr.trim(), 'error');
+      } else if (e.key === 'ArrowUp') {
+        if (history.length > 0 && historyIdx < history.length - 1) {
+          historyIdx++;
+          input.value = history[historyIdx];
+        }
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        if (historyIdx > 0) {
+          historyIdx--;
+          input.value = history[historyIdx];
+        } else {
+          historyIdx = -1;
+          input.value = '';
+        }
+        e.preventDefault();
+      }
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════
   //  AUTO-SAVE
   // ════════════════════════════════════════════════════════════════
   function setupAutoSave() {
@@ -2445,6 +2606,7 @@
     setupAutoSave();
 
     switchSidebarPanel('explorer');
+    setupDebugConsole();
 
     document.getElementById('btn-split-editor')?.addEventListener('click', () => toggleSplitEditor());
 

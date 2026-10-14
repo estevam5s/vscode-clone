@@ -1114,6 +1114,17 @@ body.platform-darwin #titlebar { padding-left: 78px; }
   font-family: inherit;
 }
 .notification-action:hover { background: var(--accent-hover); }
+.notification-action-btn {
+  padding: 2px 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.notification-action-btn:hover { background: var(--accent-hover); }
 .notification-action.secondary {
   background: transparent;
   border: 1px solid var(--border);
@@ -1357,6 +1368,32 @@ body.platform-darwin #titlebar { padding-left: 78px; }
   white-space: nowrap;
   color: var(--text-primary);
 }
+
+/* Git gutter decorations */
+.git-gutter-modified {
+  width: 3px !important;
+  margin-left: 3px;
+  background: var(--git-modified, #1b81a8);
+}
+.git-gutter-added {
+  width: 3px !important;
+  margin-left: 3px;
+  background: var(--git-added, #2ea043);
+}
+.git-gutter-deleted {
+  width: 3px !important;
+  margin-left: 3px;
+  background: var(--git-deleted, #f85149);
+  border-left: 3px solid var(--git-deleted, #f85149);
+}
+
+/* Debug console REPL */
+.debug-line { padding: 1px 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+.debug-input { color: var(--text-link); }
+.debug-output { color: var(--text-primary); }
+.debug-error { color: var(--error, #f85149); }
+.debug-console-input-row { border-top: 1px solid var(--border); padding: 4px 8px; }
+.debug-console-input-row input { font-family: var(--font-mono, monospace); }
 
 /* Diff tab indicator */
 .tab.diff-tab .tab-name::before {
