@@ -283,13 +283,13 @@ function renderFileTree(items, container, depth = 0) {
 let terminal = null;
 
 async function initTerminal() {
-  const { Terminal } = require('xterm');
-  const { FitAddon } = require('xterm-addon-fit');
+  const { Terminal } = require('@xterm/xterm');
+  const { FitAddon } = require('@xterm/addon-fit');
 
   // Load xterm CSS
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = require.resolve('xterm/css/xterm.css');
+  link.href = require.resolve('@xterm/xterm/css/xterm.css');
   document.head.appendChild(link);
 
   terminal = new Terminal({
