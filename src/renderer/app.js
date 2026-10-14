@@ -1619,8 +1619,8 @@
 
   function toggleBreadcrumbs() {
     state.breadcrumbsEnabled = !state.breadcrumbsEnabled;
-    const bar = document.getElementById('breadcrumbs-bar');
-    if (bar) bar.style.display = state.breadcrumbsEnabled ? '' : 'none';
+    const bc = document.getElementById('breadcrumbs');
+    if (bc) bc.classList.toggle('visible', state.breadcrumbsEnabled);
   }
 
   function toggleZenMode() {
@@ -2123,7 +2123,8 @@
   //  INIT
   // ════════════════════════════════════════════════════════════════
   async function init() {
-    const platform = await window.appApi.getPlatform().catch(() => process?.platform || 'darwin');
+    const platformInfo = await window.appApi.getPlatform().catch(() => ({ platform: 'darwin' }));
+    const platform = platformInfo.platform || 'darwin';
     document.body.classList.add('platform-' + platform);
 
     if (!state.rootFolder) {

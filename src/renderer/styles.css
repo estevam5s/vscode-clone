@@ -1391,6 +1391,31 @@ input:focus-visible { outline: none; }
 .no-select { user-select: none; }
 .monospace { font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Consolas', monospace; }
 
+/* ═══ Inline rename ═══ */
+.inline-rename {
+  background: var(--bg-input);
+  border: 1px solid var(--border-focus);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 0 4px;
+  outline: none;
+  width: 100%;
+}
+
+/* ═══ File active in tree ═══ */
+.tree-item.active-file { background: var(--bg-active); }
+
+/* ═══ Zen mode ═══ */
+body.zen-mode #activity-bar,
+body.zen-mode #sidebar,
+body.zen-mode #sidebar-resize,
+body.zen-mode #status-bar,
+body.zen-mode #tabs-bar { display: none !important; }
+
+/* ═══ Terminal wrapper ═══ */
+.terminal-wrapper { flex: 1; overflow: hidden; }
+
 /* ═══ Drag active state ═══ */
 body.resizing { cursor: col-resize; }
 body.resizing-v { cursor: row-resize; }
