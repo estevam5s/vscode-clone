@@ -4,6 +4,8 @@ A comprehensive, functional clone of Visual Studio Code, built by reverse-engine
 
 Every major subsystem was reconstructed based on REA's analysis of VS Code's 342MB evidence file, mapping 21,097 application graph nodes, 89,731 semantic relations, and 27,985 dependency edges.
 
+**5,800+ lines** of hand-written code across 8 source files.
+
 ## REA Analysis Results
 
 | Metric | Value |
@@ -47,72 +49,85 @@ Preload (Context Bridge)
 └── menuEvents API (event relay)
 
 Renderer (Workbench)
-├── Monaco Editor (syntax highlighting, minimap, diff, multi-cursor)
-├── Tab Management (open, close, reorder, modified indicator)
+├── Monaco Editor (syntax highlighting, minimap, diff, multi-cursor, gutter decorations)
+├── Split Editor (side-by-side editing with shared model)
+├── Diff Editor (side-by-side diff view for git changes)
+├── Tab Management (open, close, reorder via drag-and-drop, modified indicator)
 ├── File Explorer (tree view, context menu, inline rename, new file/folder)
-├── Search Panel (content search, file search, regex, replace)
-├── Source Control (Git status, stage/unstage, commit, diff, branch)
+├── Search Panel (content search, file search, regex, replace all in files)
+├── Source Control (Git status, stage/unstage per-file, commit, diff, branch, commit log)
 ├── Debug Panel (breakpoints, variables, watch, call stack, toolbar)
-├── Extensions Panel (installed list, search)
+├── Extensions Panel (16 marketplace entries, install/uninstall, ratings, downloads)
 ├── Terminal Panel (multiple instances, tabs, split, resize)
-├── Bottom Panel (Problems, Output, Debug Console, Terminal, Ports)
-├── Command Palette (40+ commands, fuzzy search)
+├── Bottom Panel (Problems, Output, Debug Console REPL, Terminal, Ports)
+├── Command Palette (70+ commands, fuzzy search, snippets, transforms)
 ├── Quick Open (file search, Cmd+P)
-├── Status Bar (branch, errors, cursor, encoding, language)
-├── Notifications (toast system)
+├── Quick Pick (reusable selector for languages, branches, themes, encodings)
+├── Status Bar (branch, errors, cursor, indentation, encoding, EOL, language)
+├── Notifications (toast system with action buttons)
 ├── Context Menus (editor, files, tabs, terminal)
 ├── Breadcrumbs (workspace > folder > file)
-├── Theme Engine (dark, light, high contrast)
-└── Keyboard Shortcuts (full VS Code mapping)
+├── Theme Engine (dark, light, high contrast — with picker)
+├── Workspace Persistence (saves/restores settings via localStorage)
+├── Git Gutter Decorations (colored margin for modified/added/deleted lines)
+└── Keyboard Shortcuts (full VS Code mapping, 30+ bindings)
 ```
 
 ## Features
 
 ### Editor
 - Multi-tab code editor with Monaco (same engine as VS Code)
-- Syntax highlighting for 50+ languages
+- Syntax highlighting for 90+ file types
 - Minimap, word wrap, bracket pair colorization
-- Multi-cursor editing
+- Multi-cursor editing (Cmd+Alt+Up/Down)
 - Find and replace (in-editor and across files)
-- Diff editor (side-by-side)
-- Go to line, go to definition
-- Format, toggle comment
-- Dirty state tracking per file
+- Diff editor (side-by-side for git changes)
+- Split editor (Cmd+\\)
+- Git gutter decorations (colored margin bars)
+- Go to line, go to definition, go to references
+- Format, toggle line/block comment
+- Dirty state tracking with save confirmation dialog
+- 10 built-in code snippets (console.log, arrow function, try/catch, React component, etc.)
+- Text transforms (upper/lower case, sort lines, trim whitespace)
 
 ### File Explorer
 - Directory tree with expand/collapse
-- File type icons
+- 90 file type icons with distinct colors
 - Context menu (new file, new folder, rename, delete, copy path, reveal)
 - Inline rename and create
 - Open Editors section
-- Drag to open files
+- Drag-and-drop tab reorder
 
 ### Search
 - Search across all files in workspace
 - Case sensitive, whole word, regex toggles
-- Include/exclude patterns
+- Include/exclude file patterns
 - Results grouped by file with line preview
-- Replace in files
+- Replace all in files
+- Click result to navigate to line
 
 ### Source Control (Git)
-- Changed files list (modified, added, deleted, untracked)
-- Stage/unstage individual files or all
-- Commit with message
-- Diff view on click
-- Branch display and switching
-- Push, pull, sync
-- Stash and stash pop
+- Changed files list with status indicators (M, A, D, U, R)
+- Stage/unstage individual files (per-file buttons)
+- Stage All / Unstage All section buttons
+- Commit with message (Enter or Ctrl+Enter)
+- Diff view on click (modified files open side-by-side diff)
+- Commit log section (last 15 commits)
+- Branch display, checkout via quick pick
+- Push, pull, stash, stash pop
+- Git blame, file history
 
 ### Debug
 - Breakpoints management
 - Variables, watch expressions, call stack views
 - Debug toolbar (continue, step over/into/out, restart, stop)
-- Debug console
+- Debug console with JavaScript REPL (eval via node, history navigation)
 
 ### Extensions
-- Search and browse extensions
-- Installed extensions list
-- Enable/disable toggles
+- 16 mock marketplace extensions with rich cards
+- Icon, publisher, description, star rating, download count
+- Install/uninstall with notification feedback
+- Search/filter extensions
 
 ### Terminal
 - Multiple terminal instances with tabs
@@ -122,35 +137,38 @@ Renderer (Workbench)
 - Resize, clear, kill
 
 ### Bottom Panel
-- Problems (errors/warnings from diagnostics)
-- Output (log output with source selection)
-- Debug Console (REPL)
+- Problems (errors/warnings with severity icons)
+- Output (log output with source channel selector)
+- Debug Console (JavaScript REPL with history)
 - Terminal (integrated terminals)
-- Ports (placeholder)
+- Ports (forwarded ports table)
 
 ### Command Palette
-- 40+ commands
+- 70+ commands across 12 categories
 - Fuzzy search
-- Keyboard navigation
-- Category prefixes (>, @, :, #)
+- Keyboard navigation (arrow keys, Enter, Escape)
+- Category prefixes: `>` commands, `:` goto line, default files
+- Quick pick mode for language, branch, theme, encoding selection
 
 ### Status Bar
-- Git branch + sync status
-- Error/warning count
+- Git branch + click to checkout
+- Error/warning count (click to show Problems)
 - Cursor position (Ln/Col)
-- Indentation mode
-- Encoding
-- Line ending
-- Language mode
+- Indentation mode (click to toggle Spaces: 2/4)
+- Encoding (click to select UTF-8, UTF-16, ISO 8859-1, etc.)
+- Line ending (click to toggle LF/CRLF)
+- Language mode (click to select from all Monaco languages)
 
 ### Other
-- Notification toasts
-- Context menus everywhere
+- Notification toasts with action buttons (Save/Don't Save/Cancel)
+- Context menus everywhere (editor, files, tabs, terminal)
 - Breadcrumbs navigation
 - Resizable sidebar and panel
-- Keyboard shortcuts matching VS Code
-- Dark, Light, and High Contrast themes
-- Settings editor (GUI with all VS Code settings)
+- Zen mode (Cmd+K Z)
+- Auto-save (configurable)
+- Dark, Light, and High Contrast themes with quick pick
+- Settings editor (GUI with 38 configurable options)
+- Workspace persistence (theme, sidebar, panel, word wrap, minimap, last folder)
 
 ## Quick Start
 
@@ -183,6 +201,7 @@ npm run build:linux  # Linux AppImage
 4. Extracted 342MB of evidence: modules, IPC channels, context bridges, endpoints
 5. Mapped the complete architecture from the application graph (21,097 nodes)
 6. Reconstructed every subsystem based on the evidence
+7. Iteratively built and tested each feature against the REA data
 
 ## License
 
