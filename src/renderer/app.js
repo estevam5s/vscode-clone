@@ -35,6 +35,7 @@
     notifications: [],
     searchResults: [],
     problems: [],
+    installedExtensions: new Set(),
     outputLog: [],
     zenMode: false,
     autoSave: false,
@@ -339,9 +340,19 @@
     const tab = state.tabs.find(t => t.id === id);
     if (!tab || !monacoReady) return;
 
+    if (tab.isDiff) {
+      activateDiffTab(tab);
+      return;
+    }
+
     showElement('monaco-editor');
     hideElement('welcome-screen');
     hideElement('diff-editor');
+
+    if (state.diffEditor) {
+      state.diffEditor.dispose();
+      state.diffEditor = null;
+    }
 
     tab._settingContent = true;
     const uri = monaco.Uri.parse('file://' + (tab.path || 'untitled-' + id));
@@ -376,11 +387,14 @@
     const idx = state.tabs.indexOf(tab);
     state.tabs.splice(idx, 1);
 
-    const uri = monaco.Uri.parse('file://' + (tab.path || 'untitled-' + id));
-    const model = monaco.editor.getModel(uri);
-    if (model) model.dispose();
+    if (!tab.isDiff) {
+      const uri = monaco.Uri.parse('file://' + (tab.path || 'untitled-' + id));
+      const model = monaco.editor.getModel(uri);
+      if (model) model.dispose();
+    }
 
     if (state.activeTabId === id) {
+      if (state.diffEditor) { state.diffEditor.dispose(); state.diffEditor = null; }
       if (state.tabs.length > 0) {
         activateTab(state.tabs[Math.min(idx, state.tabs.length - 1)].id);
       } else {
@@ -416,7 +430,7 @@
 
     for (const tab of state.tabs) {
       const el = document.createElement('div');
-      el.className = 'tab' + (tab.id === state.activeTabId ? ' active' : '') + (tab.modified ? ' modified' : '');
+      el.className = 'tab' + (tab.id === state.activeTabId ? ' active' : '') + (tab.modified ? ' modified' : '') + (tab.isDiff ? ' diff-tab' : '');
       el.draggable = true;
       el.dataset.tabId = tab.id;
 
@@ -836,6 +850,7 @@
     state.gitBranch = await window.git.branch();
     state.gitChanges = await window.git.status();
     renderGitPanel();
+    renderGitLog();
     updateStatusBarGit();
   }
 
@@ -884,14 +899,108 @@
 
       item.innerHTML =
         `<span class="scm-file-name">${getFileName(change.file)}</span>` +
+        `<span class="scm-file-actions">` +
+        `<button class="icon-btn icon-btn-sm scm-action-btn" title="${isStaged ? 'Unstage' : 'Stage'}">` +
+        `${isStaged ? '−' : '+'}` +
+        `</button>` +
+        `</span>` +
         `<span class="scm-file-status ${label}">${label}</span>`;
 
+      item.querySelector('.scm-action-btn').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (isStaged) await window.git.unstage(change.file);
+        else await window.git.stage(change.file);
+        refreshGitStatus();
+      });
+
       item.addEventListener('click', async () => {
-        const content = await window.fs.readFile(state.rootFolder + '/' + change.file).catch(() => '');
-        createTab(state.rootFolder + '/' + change.file, content);
+        if (label === 'U' || label === 'A') {
+          const content = await window.fs.readFile(state.rootFolder + '/' + change.file).catch(() => '');
+          createTab(state.rootFolder + '/' + change.file, content);
+        } else {
+          await openDiffForFile(change.file);
+        }
       });
 
       container.appendChild(item);
+    }
+  }
+
+  async function openDiffForFile(relativePath) {
+    if (!monacoReady || !state.rootFolder) return;
+    const fullPath = state.rootFolder + '/' + relativePath;
+    const currentContent = await window.fs.readFile(fullPath).catch(() => '');
+    const originalContent = await window.git.show('HEAD:' + relativePath).catch(() => '');
+    const lang = getLanguage(relativePath);
+    const fileName = getFileName(relativePath);
+
+    const existing = state.tabs.find(t => t.path === fullPath && t.isDiff);
+    if (existing) { activateTab(existing.id); return; }
+
+    const id = ++tabIdCounter;
+    const tab = {
+      id, path: fullPath, name: fileName,
+      content: currentContent, language: lang,
+      modified: false, originalContent: currentContent,
+      isDiff: true, diffOriginal: originalContent,
+      _settingContent: false,
+    };
+    state.tabs.push(tab);
+    addRecentFile(fullPath);
+    activateDiffTab(tab);
+  }
+
+  function activateDiffTab(tab) {
+    state.activeTabId = tab.id;
+    hideElement('monaco-editor');
+    hideElement('welcome-screen');
+
+    const diffContainer = document.getElementById('diff-editor');
+    if (!diffContainer) return;
+    diffContainer.style.display = '';
+
+    if (state.diffEditor) {
+      state.diffEditor.dispose();
+      state.diffEditor = null;
+    }
+
+    const originalModel = monaco.editor.createModel(tab.diffOriginal || '', tab.language);
+    const modifiedModel = monaco.editor.createModel(tab.content || '', tab.language);
+
+    state.diffEditor = monaco.editor.createDiffEditor(diffContainer, {
+      theme: state.theme === 'light' ? 'vscode-clone-light' : state.theme === 'high-contrast' ? 'vscode-clone-hc' : 'vscode-clone-dark',
+      automaticLayout: true,
+      renderSideBySide: true,
+      originalEditable: false,
+      fontSize: 14,
+      fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'SF Mono', Menlo, Monaco, monospace",
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+    });
+
+    state.diffEditor.setModel({ original: originalModel, modified: modifiedModel });
+    updateBreadcrumbs(tab.path);
+    updateTitle(tab);
+    renderTabs();
+    renderOpenEditors();
+  }
+
+  async function renderGitLog() {
+    const logList = document.getElementById('scm-log-list');
+    if (!logList || !state.isGitRepo) return;
+    const logs = await window.git.log(15).catch(() => []);
+    logList.innerHTML = '';
+    if (!logs || logs.length === 0) {
+      logList.innerHTML = '<div class="empty-state-inline">No commits</div>';
+      return;
+    }
+    for (const entry of logs) {
+      const el = document.createElement('div');
+      el.className = 'git-log-item';
+      const hash = typeof entry === 'string' ? entry.slice(0, 7) : (entry.hash || '').slice(0, 7);
+      const msg = typeof entry === 'string' ? entry.slice(8) : (entry.message || entry);
+      el.innerHTML = `<span class="git-log-hash">${hash}</span><span class="git-log-msg">${escapeHtml(String(msg))}</span>`;
+      logList.appendChild(el);
     }
   }
 
@@ -970,18 +1079,22 @@
   //  EXTENSIONS PANEL
   // ════════════════════════════════════════════════════════════════
   const MOCK_EXTENSIONS = [
-    { name: 'Python', publisher: 'ms-python', description: 'Python language support', enabled: true },
-    { name: 'ESLint', publisher: 'dbaeumer', description: 'Integrates ESLint into VS Code', enabled: true },
-    { name: 'Prettier', publisher: 'esbenp', description: 'Code formatter', enabled: true },
-    { name: 'GitLens', publisher: 'eamodio', description: 'Git supercharged', enabled: true },
-    { name: 'Live Server', publisher: 'ritwickdey', description: 'Launch a local dev server', enabled: false },
-    { name: 'Thunder Client', publisher: 'rangav', description: 'REST API Client', enabled: false },
-    { name: 'Docker', publisher: 'ms-azuretools', description: 'Docker support', enabled: true },
-    { name: 'Tailwind CSS IntelliSense', publisher: 'bradlc', description: 'Tailwind CSS tooling', enabled: true },
-    { name: 'Auto Rename Tag', publisher: 'formulahendry', description: 'Auto rename paired HTML tag', enabled: true },
-    { name: 'Material Icon Theme', publisher: 'pkief', description: 'Material Design icons', enabled: true },
-    { name: 'Error Lens', publisher: 'usernamehw', description: 'Improve highlighting of errors', enabled: false },
-    { name: 'Code Spell Checker', publisher: 'streetsidesoftware', description: 'Spelling checker for source code', enabled: false },
+    { id: 'ms-python.python', name: 'Python', publisher: 'Microsoft', description: 'Python language support with IntelliSense, linting, debugging, and Jupyter', icon: 'Py', color: '#3572A5', downloads: '112M', rating: 4.5 },
+    { id: 'dbaeumer.vscode-eslint', name: 'ESLint', publisher: 'Microsoft', description: 'Integrates ESLint JavaScript into VS Code', icon: 'ES', color: '#4B32C3', downloads: '34M', rating: 4.3 },
+    { id: 'esbenp.prettier-vscode', name: 'Prettier', publisher: 'Prettier', description: 'Code formatter using prettier', icon: 'Pr', color: '#56B3B4', downloads: '42M', rating: 4.0 },
+    { id: 'eamodio.gitlens', name: 'GitLens', publisher: 'GitKraken', description: 'Supercharge Git — visualize code authorship, navigate repos, and more', icon: 'GL', color: '#F05033', downloads: '31M', rating: 4.4 },
+    { id: 'ritwickdey.liveserver', name: 'Live Server', publisher: 'Ritwick Dey', description: 'Launch a development local server with live reload', icon: 'LS', color: '#41D1FF', downloads: '49M', rating: 4.2 },
+    { id: 'rangav.vscode-thunder-client', name: 'Thunder Client', publisher: 'Ranga Vadhineni', description: 'Lightweight REST API Client for VS Code', icon: 'TC', color: '#FFB900', downloads: '8M', rating: 4.6 },
+    { id: 'ms-azuretools.vscode-docker', name: 'Docker', publisher: 'Microsoft', description: 'Makes it easy to create, manage, and debug containerized applications', icon: 'Dk', color: '#2496ED', downloads: '22M', rating: 4.3 },
+    { id: 'bradlc.vscode-tailwindcss', name: 'Tailwind CSS IntelliSense', publisher: 'Tailwind Labs', description: 'Intelligent Tailwind CSS tooling for VS Code', icon: 'TW', color: '#38BDF8', downloads: '12M', rating: 4.5 },
+    { id: 'formulahendry.auto-rename-tag', name: 'Auto Rename Tag', publisher: 'Jun Han', description: 'Auto rename paired HTML/XML tag', icon: 'AR', color: '#E44D26', downloads: '18M', rating: 4.1 },
+    { id: 'pkief.material-icon-theme', name: 'Material Icon Theme', publisher: 'Philipp Kief', description: 'Material Design Icons for Visual Studio Code', icon: 'MI', color: '#009688', downloads: '21M', rating: 4.7 },
+    { id: 'usernamehw.errorlens', name: 'Error Lens', publisher: 'Alexander', description: 'Improve highlighting of errors, warnings and other diagnostics', icon: 'EL', color: '#E45454', downloads: '9M', rating: 4.5 },
+    { id: 'streetsidesoftware.code-spell-checker', name: 'Code Spell Checker', publisher: 'Street Side Software', description: 'Spelling checker for source code', icon: 'Sp', color: '#6AAB73', downloads: '14M', rating: 4.3 },
+    { id: 'github.copilot', name: 'GitHub Copilot', publisher: 'GitHub', description: 'Your AI pair programmer', icon: 'CP', color: '#000000', downloads: '18M', rating: 4.2 },
+    { id: 'ms-vscode.cpptools', name: 'C/C++', publisher: 'Microsoft', description: 'C/C++ IntelliSense, debugging, and code browsing', icon: 'C+', color: '#00599C', downloads: '62M', rating: 4.1 },
+    { id: 'golang.go', name: 'Go', publisher: 'Go Team at Google', description: 'Rich Go language support for Visual Studio Code', icon: 'Go', color: '#00ADD8', downloads: '15M', rating: 4.4 },
+    { id: 'rust-lang.rust-analyzer', name: 'rust-analyzer', publisher: 'rust-lang', description: 'Rust language support for Visual Studio Code', icon: 'Rs', color: '#DEA584', downloads: '7M', rating: 4.6 },
   ];
 
   function renderExtensionsPanel() {
@@ -991,20 +1104,37 @@
     const countEl = document.getElementById('ext-installed-count');
 
     const filtered = query
-      ? MOCK_EXTENSIONS.filter(e => e.name.toLowerCase().includes(query) || e.description.toLowerCase().includes(query))
+      ? MOCK_EXTENSIONS.filter(e => e.name.toLowerCase().includes(query) || e.description.toLowerCase().includes(query) || e.publisher.toLowerCase().includes(query))
       : MOCK_EXTENSIONS;
 
     if (countEl) countEl.textContent = filtered.length;
     container.innerHTML = '';
     for (const ext of filtered) {
+      const installed = state.installedExtensions.has(ext.id);
       const el = document.createElement('div');
-      el.className = 'ext-item';
+      el.className = 'ext-item' + (installed ? ' installed' : '');
+      const stars = '★'.repeat(Math.floor(ext.rating)) + (ext.rating % 1 >= 0.5 ? '½' : '');
       el.innerHTML =
-        `<div class="ext-icon">${ext.name.slice(0, 2)}</div>` +
+        `<div class="ext-icon" style="background:${ext.color};color:#fff">${ext.icon}</div>` +
         `<div class="ext-info">` +
         `<div class="ext-name">${ext.name}</div>` +
+        `<div class="ext-publisher">${ext.publisher}</div>` +
         `<div class="ext-desc">${ext.description}</div>` +
-        `</div>`;
+        `<div class="ext-meta"><span class="ext-rating">${stars} ${ext.rating}</span><span class="ext-downloads">${ext.downloads}</span></div>` +
+        `</div>` +
+        `<button class="ext-action-btn ${installed ? 'uninstall' : 'install'}">${installed ? 'Uninstall' : 'Install'}</button>`;
+
+      el.querySelector('.ext-action-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (installed) {
+          state.installedExtensions.delete(ext.id);
+          showNotification('info', `${ext.name} uninstalled`);
+        } else {
+          state.installedExtensions.add(ext.id);
+          showNotification('info', `${ext.name} installed — reload to activate`);
+        }
+        renderExtensionsPanel();
+      });
 
       container.appendChild(el);
     }
@@ -1281,6 +1411,7 @@
     { label: 'View: Toggle Minimap', action: () => toggleMinimap() },
     { label: 'View: Toggle Breadcrumbs', action: () => toggleBreadcrumbs() },
     { label: 'View: Toggle Word Wrap', shortcut: '⌥Z', action: () => toggleWordWrap() },
+    { label: 'View: Split Editor Right', shortcut: '⌘\\', action: () => toggleSplitEditor() },
     { label: 'View: Zen Mode', shortcut: '⌘K Z', action: () => toggleZenMode() },
     { label: 'View: Problems', shortcut: '⌘⇧M', action: () => showBottomPanel('problems') },
     { label: 'View: Output', shortcut: '⌘⇧U', action: () => showBottomPanel('output') },
@@ -1312,12 +1443,49 @@
     { label: 'Preferences: Keyboard Shortcuts', shortcut: '⌘K ⌘S', action: () => showNotification('info', 'Keyboard Shortcuts editor') },
     { label: 'Preferences: Color Theme', action: () => cycleTheme() },
 
+    { label: 'Selection: Select All', shortcut: '⌘A', action: () => state.editor?.trigger('', 'editor.action.selectAll') },
+    { label: 'Selection: Expand Selection', shortcut: '⌘⇧→', action: () => state.editor?.trigger('', 'editor.action.smartSelect.expand') },
+    { label: 'Selection: Add Cursor Above', shortcut: '⌘⌥↑', action: () => state.editor?.trigger('', 'editor.action.insertCursorAbove') },
+    { label: 'Selection: Add Cursor Below', shortcut: '⌘⌥↓', action: () => state.editor?.trigger('', 'editor.action.insertCursorBelow') },
+    { label: 'Selection: Copy Line Down', shortcut: '⌘⇧D', action: () => state.editor?.trigger('', 'editor.action.copyLinesDownAction') },
+    { label: 'Selection: Move Line Up', shortcut: '⌥↑', action: () => state.editor?.trigger('', 'editor.action.moveLinesUpAction') },
+    { label: 'Selection: Move Line Down', shortcut: '⌥↓', action: () => state.editor?.trigger('', 'editor.action.moveLinesDownAction') },
+
+    { label: 'Snippet: Console Log', action: () => insertSnippet("console.log('$1');") },
+    { label: 'Snippet: Arrow Function', action: () => insertSnippet('const ${1:name} = ($2) => {\n\t$3\n};') },
+    { label: 'Snippet: Try/Catch', action: () => insertSnippet('try {\n\t$1\n} catch (${2:error}) {\n\tconsole.error($2);\n}') },
+    { label: 'Snippet: Import', action: () => insertSnippet("import { $2 } from '$1';") },
+    { label: 'Snippet: React Component', action: () => insertSnippet("export function ${1:Component}({ $2 }) {\n\treturn (\n\t\t<div>\n\t\t\t$3\n\t\t</div>\n\t);\n}") },
+    { label: 'Snippet: useEffect', action: () => insertSnippet("useEffect(() => {\n\t$1\n\treturn () => {\n\t\t$2\n\t};\n}, [$3]);") },
+    { label: 'Snippet: useState', action: () => insertSnippet("const [$1, set${1/(.*)/${1:/capitalize}/}] = useState($2);") },
+    { label: 'Snippet: For Loop', action: () => insertSnippet('for (let ${1:i} = 0; $1 < ${2:array}.length; $1++) {\n\t$3\n}') },
+    { label: 'Snippet: Async Function', action: () => insertSnippet('async function ${1:name}($2) {\n\t$3\n}') },
+    { label: 'Snippet: Class', action: () => insertSnippet('class ${1:Name} {\n\tconstructor($2) {\n\t\t$3\n\t}\n}') },
+
+    { label: 'Transform: Upper Case', action: () => state.editor?.trigger('', 'editor.action.transformToUppercase') },
+    { label: 'Transform: Lower Case', action: () => state.editor?.trigger('', 'editor.action.transformToLowercase') },
+    { label: 'Transform: Sort Lines Ascending', action: () => state.editor?.trigger('', 'editor.action.sortLinesAscending') },
+    { label: 'Transform: Sort Lines Descending', action: () => state.editor?.trigger('', 'editor.action.sortLinesDescending') },
+    { label: 'Transform: Trim Trailing Whitespace', action: () => state.editor?.trigger('', 'editor.action.trimTrailingWhitespace') },
+
     { label: 'Developer: Reload Window', action: () => window.appApi.reload() },
     { label: 'Developer: Toggle Developer Tools', action: () => window.appApi.toggleDevTools() },
 
     { label: 'Help: Welcome', action: () => showWelcome() },
     { label: 'Help: About', action: () => window.appApi.openAbout() },
   ];
+
+  function insertSnippet(template) {
+    if (!state.editor) return;
+    const selection = state.editor.getSelection();
+    const text = template.replace(/\$\{?\d+(?::([^}]*))?\}?/g, (_, def) => def || '');
+    state.editor.executeEdits('snippet', [{
+      range: selection,
+      text: text,
+      forceMoveMarkers: true,
+    }]);
+    state.editor.focus();
+  }
 
   function toggleCommandPalette() {
     const overlay = document.getElementById('command-palette');
@@ -1835,6 +2003,7 @@
       if (mod && e.shiftKey && e.key === 'M') { e.preventDefault(); showBottomPanel('problems'); return; }
       if (mod && e.shiftKey && e.key === 'U') { e.preventDefault(); showBottomPanel('output'); return; }
 
+      if (mod && e.key === '\\') { e.preventDefault(); toggleSplitEditor(); return; }
       if (e.altKey && e.key === 'z') { e.preventDefault(); toggleWordWrap(); return; }
     });
 
@@ -1843,6 +2012,66 @@
         hideContextMenu();
       }
     });
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  SPLIT EDITOR
+  // ════════════════════════════════════════════════════════════════
+  let splitEditor = null;
+
+  function toggleSplitEditor() {
+    const group2 = document.getElementById('editor-group-2');
+    const handle = document.getElementById('editor-split-handle');
+    const container2 = document.getElementById('editor-container-2');
+    if (!group2 || !container2) return;
+
+    if (splitEditor) {
+      splitEditor.dispose();
+      splitEditor = null;
+      group2.style.display = 'none';
+      handle.style.display = 'none';
+      return;
+    }
+
+    group2.style.display = '';
+    handle.style.display = '';
+
+    const tab = state.tabs.find(t => t.id === state.activeTabId);
+    splitEditor = monaco.editor.create(container2, {
+      value: tab ? tab.content : '',
+      language: tab ? tab.language : 'plaintext',
+      theme: state.theme === 'light' ? 'vscode-clone-light' : state.theme === 'high-contrast' ? 'vscode-clone-hc' : 'vscode-clone-dark',
+      automaticLayout: true,
+      fontSize: 14,
+      fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'SF Mono', Menlo, Monaco, monospace",
+      minimap: { enabled: state.minimapEnabled },
+      scrollBeyondLastLine: true,
+      wordWrap: state.wordWrap ? 'on' : 'off',
+      readOnly: false,
+    });
+
+    if (tab) {
+      const uri = monaco.Uri.parse('file://' + (tab.path || 'untitled-' + tab.id));
+      const model = monaco.editor.getModel(uri);
+      if (model) splitEditor.setModel(model);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  OPEN FOLDER PROGRAMMATICALLY
+  // ════════════════════════════════════════════════════════════════
+  async function openFolderPath(folderPath) {
+    const tree = await window.fs.readDir(folderPath, 5).catch(() => []);
+    state.rootFolder = folderPath;
+    state.rootFolderName = getFileName(folderPath);
+    const nameEl = document.getElementById('folder-name');
+    if (nameEl) nameEl.textContent = state.rootFolderName.toUpperCase();
+    const treeEl = document.getElementById('file-tree');
+    if (treeEl) { treeEl.innerHTML = ''; renderFileTree(tree, treeEl, 0, folderPath); }
+    const emptyState = document.querySelector('#file-tree .empty-state');
+    if (emptyState) emptyState.style.display = 'none';
+    window.fs.watch(folderPath);
+    refreshGitStatus();
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -2033,6 +2262,24 @@
 
     const refreshBtn = document.getElementById('scm-refresh-btn');
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshGitStatus());
+
+    const stageAllBtn = document.getElementById('scm-stage-all');
+    if (stageAllBtn) stageAllBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      for (const c of state.gitChanges.filter(ch => ch.status === '??' || (ch.status[1] && ch.status[1] !== ' '))) {
+        await window.git.stage(c.file);
+      }
+      refreshGitStatus();
+    });
+
+    const unstageAllBtn = document.getElementById('scm-unstage-all');
+    if (unstageAllBtn) unstageAllBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      for (const c of state.gitChanges.filter(ch => 'MADRC'.includes(ch.status[0]) && ch.status[0] !== '?')) {
+        await window.git.unstage(c.file);
+      }
+      refreshGitStatus();
+    });
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -2040,8 +2287,14 @@
   // ════════════════════════════════════════════════════════════════
   function setupWelcome() {
     document.getElementById('welcome-new-file')?.addEventListener('click', () => newFile());
-    document.getElementById('welcome-open-file')?.addEventListener('click', () => window.dialogs.openFile());
-    document.getElementById('welcome-open-folder')?.addEventListener('click', () => window.dialogs.openFolder());
+    document.getElementById('welcome-open-file')?.addEventListener('click', async () => {
+      const data = await window.dialogs.openFile();
+      if (data) createTab(data.path, data.content);
+    });
+    document.getElementById('welcome-open-folder')?.addEventListener('click', async () => {
+      const data = await window.dialogs.openFolder();
+      if (data && data.path) openFolderPath(data.path);
+    });
     document.getElementById('welcome-open-terminal')?.addEventListener('click', () => toggleTerminal());
     document.getElementById('welcome-clone-repo')?.addEventListener('click', () => showNotification('info', 'Clone Repository'));
   }
@@ -2101,6 +2354,48 @@
   }
 
   // ════════════════════════════════════════════════════════════════
+  //  WORKSPACE PERSISTENCE
+  // ════════════════════════════════════════════════════════════════
+  function saveWorkspaceState() {
+    try {
+      const ws = {
+        recentFolders: state.recentFiles.slice(0, 10),
+        theme: state.theme,
+        sidebarWidth: state.sidebarWidth,
+        panelHeight: state.panelHeight,
+        sidebarVisible: state.sidebarVisible,
+        wordWrap: state.wordWrap,
+        minimapEnabled: state.minimapEnabled,
+        autoSave: state.autoSave,
+        lastFolder: state.rootFolder,
+      };
+      localStorage.setItem('vscode-clone-workspace', JSON.stringify(ws));
+    } catch (_) {}
+  }
+
+  function restoreWorkspaceState() {
+    try {
+      const raw = localStorage.getItem('vscode-clone-workspace');
+      if (!raw) return;
+      const ws = JSON.parse(raw);
+      if (ws.theme && ws.theme !== state.theme) {
+        state.theme = ws.theme;
+      }
+      if (ws.sidebarWidth) state.sidebarWidth = ws.sidebarWidth;
+      if (ws.panelHeight) state.panelHeight = ws.panelHeight;
+      if (ws.sidebarVisible === false) state.sidebarVisible = false;
+      if (ws.wordWrap) state.wordWrap = true;
+      if (ws.minimapEnabled === false) state.minimapEnabled = false;
+      if (ws.autoSave) state.autoSave = true;
+      if (ws.lastFolder) {
+        window.fs.exists(ws.lastFolder).then(exists => {
+          if (exists) openFolderPath(ws.lastFolder);
+        }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+
+  // ════════════════════════════════════════════════════════════════
   //  UTILITY
   // ════════════════════════════════════════════════════════════════
   function escapeHtml(s) {
@@ -2131,6 +2426,7 @@
       document.getElementById('status-bar')?.classList.add('no-folder');
     }
 
+    restoreWorkspaceState();
     await initMonaco();
 
     setupTerminalDataListener();
@@ -2149,6 +2445,10 @@
     setupAutoSave();
 
     switchSidebarPanel('explorer');
+
+    document.getElementById('btn-split-editor')?.addEventListener('click', () => toggleSplitEditor());
+
+    window.addEventListener('beforeunload', () => saveWorkspaceState());
 
     addOutput('Code Clone initialized');
     addOutput('Architecture: 3 browser windows, 7 context bridge APIs, 40+ IPC channels');
