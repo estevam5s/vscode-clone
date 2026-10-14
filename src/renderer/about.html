@@ -15,15 +15,18 @@
   </style>
 </head>
 <body>
-  <div class="logo">⚡</div>
+  <div class="logo">
+    <svg width="48" height="48" viewBox="0 0 100 100"><polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" fill="none" stroke="#007acc" stroke-width="4"/><text x="50" y="62" text-anchor="middle" fill="#007acc" font-size="36" font-family="monospace" font-weight="bold">CC</text></svg>
+  </div>
   <h1>Code Clone</h1>
-  <p class="version">Version 1.0.0</p>
+  <p class="version">Version 2.0.0</p>
   <div class="info">
-    <p>Electron + Monaco Editor + xterm.js</p>
+    <p>Electron 33 + Monaco Editor + xterm.js + node-pty</p>
     <p>Reverse-engineered from VS Code v1.139.1</p>
-    <p>Architecture: 3 browser windows, 4 context bridges, 29 IPC channels</p>
+    <p>Architecture: 3 browser windows, 7 context bridge APIs, 40+ IPC channels</p>
+    <p>Subsystems: Editor, Explorer, Search, Git SCM, Debug, Extensions, Terminal</p>
     <p>Built with <a href="#">REA (Reverse Engineer Anything)</a></p>
   </div>
-  <div class="rea-badge">Powered by REA Analysis · 5,966 files · 29M AST nodes</div>
+  <div class="rea-badge">Powered by REA Analysis | 5,966 files | 29M AST nodes | 21,097 graph nodes | 89,731 semantic relations</div>
 </body>
 </html>

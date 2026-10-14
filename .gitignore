@@ -3,3 +3,10 @@ dist/
 .DS_Store
 *.log
 .env
+.env.*
+.vscode/
+out/
+*.tsbuildinfo
+.turbo/
+.next/
+package-lock.json

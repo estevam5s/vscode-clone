@@ -4,74 +4,124 @@
   <meta charset="UTF-8">
   <title>Settings</title>
   <style>
-    :root { --bg: #1e1e1e; --bg2: #252526; --border: #3e3e42; --text: #ccc; --text2: #969696; --accent: #007acc; }
+    :root { --bg: #1e1e1e; --bg2: #252526; --bg3: #2d2d2d; --border: #3e3e42; --text: #cccccc; --text2: #969696; --accent: #007acc; --input-bg: #3c3c3c; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; }
-    h1 { font-size: 20px; font-weight: 400; margin-bottom: 20px; }
-    .search { width: 100%; padding: 8px 12px; background: #3c3c3c; border: 1px solid var(--border); color: var(--text); font-size: 14px; border-radius: 4px; margin-bottom: 24px; outline: none; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+    .titlebar { height: 36px; display: flex; align-items: center; padding: 0 16px; background: var(--bg2); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2); -webkit-app-region: drag; flex-shrink: 0; }
+    .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; }
+    .tab { padding: 8px 16px; font-size: 13px; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .content { flex: 1; overflow-y: auto; padding: 20px 32px; }
+    .search-wrap { position: sticky; top: 0; background: var(--bg); padding: 0 0 16px 0; z-index: 1; }
+    .search { width: 100%; max-width: 600px; padding: 6px 12px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); font-size: 13px; border-radius: 4px; outline: none; }
     .search:focus { border-color: var(--accent); }
-    .group { margin-bottom: 24px; }
-    .group-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .setting { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2d2d2d; }
-    .setting-info { flex: 1; }
-    .setting-label { font-size: 14px; margin-bottom: 2px; }
-    .setting-desc { font-size: 12px; color: var(--text2); }
-    .setting-control { margin-left: 16px; }
-    select, input[type="number"] { background: #3c3c3c; border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 3px; font-size: 13px; }
-    input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+    .group { margin-bottom: 28px; }
+    .group-title { font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; padding-bottom: 6px; border-bottom: 1px solid var(--bg3); }
+    .setting { padding: 10px 0; border-bottom: 1px solid #2a2a2a; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; }
+    .setting-info { flex: 1; margin-right: 16px; }
+    .setting-label { font-size: 14px; margin-bottom: 3px; color: var(--text); }
+    .setting-id { font-size: 11px; color: var(--text2); font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; margin-bottom: 3px; }
+    .setting-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+    .setting-control { flex-shrink: 0; }
+    select, input[type="number"], input[type="text"].setting-input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 3px; font-size: 13px; outline: none; min-width: 120px; }
+    select:focus, input[type="number"]:focus, input[type="text"].setting-input:focus { border-color: var(--accent); }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+    .modified { font-size: 11px; color: #c586c0; margin-left: 6px; }
+    .json-link { float: right; font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: none; }
+    .json-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <h1>Settings</h1>
-  <input type="text" class="search" placeholder="Search settings...">
-  <div class="group">
-    <div class="group-title">Editor</div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Font Size</div><div class="setting-desc">Controls the font size in pixels.</div></div>
-      <div class="setting-control"><input type="number" value="14" min="8" max="72"></div>
+  <div class="titlebar">Settings</div>
+  <div class="tabs">
+    <div class="tab active" data-tab="user">User</div>
+    <div class="tab" data-tab="workspace">Workspace</div>
+  </div>
+  <div class="content">
+    <div class="search-wrap">
+      <input type="text" class="search" placeholder="Search settings...">
     </div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Tab Size</div><div class="setting-desc">The number of spaces a tab is equal to.</div></div>
-      <div class="setting-control"><input type="number" value="2" min="1" max="8"></div>
+
+    <div class="group">
+      <div class="group-title">Text Editor</div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.fontSize</div><div class="setting-label">Font Size</div><div class="setting-desc">Controls the font size in pixels.</div></div><div class="setting-control"><input type="number" value="14" min="8" max="72"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.fontFamily</div><div class="setting-label">Font Family</div><div class="setting-desc">Controls the font family.</div></div><div class="setting-control"><input type="text" class="setting-input" value="'SF Mono', Menlo, Monaco, 'Courier New', monospace" style="width:300px"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.tabSize</div><div class="setting-label">Tab Size</div><div class="setting-desc">The number of spaces a tab is equal to.</div></div><div class="setting-control"><input type="number" value="2" min="1" max="8"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.insertSpaces</div><div class="setting-label">Insert Spaces</div><div class="setting-desc">Insert spaces when pressing Tab.</div></div><div class="setting-control"><input type="checkbox" checked></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.wordWrap</div><div class="setting-label">Word Wrap</div><div class="setting-desc">Controls how lines should wrap.</div></div><div class="setting-control"><select><option>off</option><option>on</option><option>wordWrapColumn</option><option>bounded</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.lineNumbers</div><div class="setting-label">Line Numbers</div><div class="setting-desc">Controls the display of line numbers.</div></div><div class="setting-control"><select><option>on</option><option>off</option><option>relative</option><option>interval</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.minimap.enabled</div><div class="setting-label">Minimap Enabled</div><div class="setting-desc">Controls whether the minimap is shown.</div></div><div class="setting-control"><input type="checkbox" checked></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.minimap.side</div><div class="setting-label">Minimap Side</div><div class="setting-desc">Controls the side where the minimap is rendered.</div></div><div class="setting-control"><select><option>right</option><option>left</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.bracketPairColorization.enabled</div><div class="setting-label">Bracket Pair Colorization</div><div class="setting-desc">Controls whether bracket pair colorization is enabled.</div></div><div class="setting-control"><input type="checkbox" checked></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.fontLigatures</div><div class="setting-label">Font Ligatures</div><div class="setting-desc">Enable/disable font ligatures ('ff', 'fi', 'ffi', etc.).</div></div><div class="setting-control"><input type="checkbox" checked></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.renderWhitespace</div><div class="setting-label">Render Whitespace</div><div class="setting-desc">Controls how the editor should render whitespace characters.</div></div><div class="setting-control"><select><option>selection</option><option>none</option><option>boundary</option><option>all</option><option>trailing</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.cursorStyle</div><div class="setting-label">Cursor Style</div><div class="setting-desc">Controls the cursor style.</div></div><div class="setting-control"><select><option>line</option><option>block</option><option>underline</option><option>line-thin</option><option>block-outline</option><option>underline-thin</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.cursorBlinking</div><div class="setting-label">Cursor Blinking</div><div class="setting-desc">Controls the cursor animation style.</div></div><div class="setting-control"><select><option>blink</option><option>smooth</option><option>phase</option><option>expand</option><option>solid</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.smoothScrolling</div><div class="setting-label">Smooth Scrolling</div><div class="setting-desc">Controls whether the editor will scroll using an animation.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.mouseWheelZoom</div><div class="setting-label">Mouse Wheel Zoom</div><div class="setting-desc">Zoom the font of the editor when using Ctrl+Scroll.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.formatOnSave</div><div class="setting-label">Format On Save</div><div class="setting-desc">Format a file on save.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.formatOnPaste</div><div class="setting-label">Format On Paste</div><div class="setting-desc">Format the pasted content.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.autoClosingBrackets</div><div class="setting-label">Auto Closing Brackets</div><div class="setting-desc">Controls whether the editor should automatically close brackets.</div></div><div class="setting-control"><select><option>always</option><option>languageDefined</option><option>beforeWhitespace</option><option>never</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">editor.autoIndent</div><div class="setting-label">Auto Indent</div><div class="setting-desc">Controls whether the editor should automatically adjust the indentation.</div></div><div class="setting-control"><select><option>advanced</option><option>brackets</option><option>full</option><option>keep</option><option>none</option></select></div></div></div>
     </div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Word Wrap</div><div class="setting-desc">Controls how lines should wrap.</div></div>
-      <div class="setting-control"><select><option>off</option><option>on</option><option>wordWrapColumn</option><option>bounded</option></select></div>
+
+    <div class="group">
+      <div class="group-title">Terminal</div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">terminal.integrated.fontSize</div><div class="setting-label">Font Size</div><div class="setting-desc">Controls the font size of the terminal.</div></div><div class="setting-control"><input type="number" value="13" min="8" max="72"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">terminal.integrated.fontFamily</div><div class="setting-label">Font Family</div><div class="setting-desc">Controls the font family of the terminal.</div></div><div class="setting-control"><input type="text" class="setting-input" value="'SF Mono', monospace" style="width:200px"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">terminal.integrated.cursorBlink</div><div class="setting-label">Cursor Blink</div><div class="setting-desc">Controls whether the terminal cursor blinks.</div></div><div class="setting-control"><input type="checkbox" checked></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">terminal.integrated.cursorStyle</div><div class="setting-label">Cursor Style</div><div class="setting-desc">Controls the style of the terminal cursor.</div></div><div class="setting-control"><select><option>block</option><option>underline</option><option>bar</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">terminal.integrated.scrollback</div><div class="setting-label">Scrollback</div><div class="setting-desc">Controls the maximum lines of terminal scrollback.</div></div><div class="setting-control"><input type="number" value="1000" min="100" max="100000"></div></div></div>
     </div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Minimap</div><div class="setting-desc">Controls whether the minimap is shown.</div></div>
-      <div class="setting-control"><input type="checkbox" checked></div>
+
+    <div class="group">
+      <div class="group-title">Workbench</div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">workbench.colorTheme</div><div class="setting-label">Color Theme</div><div class="setting-desc">Specifies the color theme used in the workbench.</div></div><div class="setting-control"><select><option>Dark+ (default dark)</option><option>Light+ (default light)</option><option>Monokai</option><option>Solarized Dark</option><option>One Dark Pro</option><option>Dracula</option><option>Nord</option><option>High Contrast</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">workbench.iconTheme</div><div class="setting-label">Icon Theme</div><div class="setting-desc">Specifies the file icon theme.</div></div><div class="setting-control"><select><option>Seti (Visual Studio Code)</option><option>Material Icon Theme</option><option>None</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">workbench.sideBar.location</div><div class="setting-label">Side Bar Location</div><div class="setting-desc">Controls the location of the sidebar.</div></div><div class="setting-control"><select><option>left</option><option>right</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">workbench.editor.showTabs</div><div class="setting-label">Show Tabs</div><div class="setting-desc">Controls whether opened editors show as individual tabs.</div></div><div class="setting-control"><select><option>multiple</option><option>single</option><option>none</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">workbench.activityBar.location</div><div class="setting-label">Activity Bar Location</div><div class="setting-desc">Controls the location of the activity bar.</div></div><div class="setting-control"><select><option>side</option><option>top</option><option>hidden</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">workbench.startupEditor</div><div class="setting-label">Startup Editor</div><div class="setting-desc">Controls which editor is shown at startup.</div></div><div class="setting-control"><select><option>welcomePage</option><option>none</option><option>newUntitledFile</option><option>welcomePageInEmptyWorkbench</option></select></div></div></div>
     </div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Bracket Pair Colorization</div><div class="setting-desc">Controls whether bracket pair colorization is enabled.</div></div>
-      <div class="setting-control"><input type="checkbox" checked></div>
+
+    <div class="group">
+      <div class="group-title">Files</div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">files.autoSave</div><div class="setting-label">Auto Save</div><div class="setting-desc">Controls auto save of editors.</div></div><div class="setting-control"><select><option>off</option><option>afterDelay</option><option>onFocusChange</option><option>onWindowChange</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">files.autoSaveDelay</div><div class="setting-label">Auto Save Delay</div><div class="setting-desc">Controls the delay in milliseconds after which an editor is auto saved.</div></div><div class="setting-control"><input type="number" value="1000" min="100" max="60000"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">files.encoding</div><div class="setting-label">Encoding</div><div class="setting-desc">The default character set encoding to use.</div></div><div class="setting-control"><select><option>utf8</option><option>utf8bom</option><option>utf16le</option><option>utf16be</option><option>windows1252</option><option>iso88591</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">files.eol</div><div class="setting-label">End of Line</div><div class="setting-desc">The default end of line character.</div></div><div class="setting-control"><select><option value="\n">LF (\n)</option><option value="\r\n">CRLF (\r\n)</option><option>auto</option></select></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">files.trimTrailingWhitespace</div><div class="setting-label">Trim Trailing Whitespace</div><div class="setting-desc">When enabled, will trim trailing whitespace when saving a file.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">files.insertFinalNewline</div><div class="setting-label">Insert Final Newline</div><div class="setting-desc">When enabled, insert a final new line at the end of the file when saving it.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
     </div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Font Ligatures</div><div class="setting-desc">Enable/disable font ligatures.</div></div>
-      <div class="setting-control"><input type="checkbox" checked></div>
+
+    <div class="group">
+      <div class="group-title">Git</div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">git.autofetch</div><div class="setting-label">Auto Fetch</div><div class="setting-desc">When enabled, auto-fetches from the remote.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">git.confirmSync</div><div class="setting-label">Confirm Sync</div><div class="setting-desc">Confirm before synchronizing git repositories.</div></div><div class="setting-control"><input type="checkbox" checked></div></div></div>
+      <div class="setting"><div class="setting-row"><div class="setting-info"><div class="setting-id">git.enableSmartCommit</div><div class="setting-label">Enable Smart Commit</div><div class="setting-desc">Commit all changes when there are no staged changes.</div></div><div class="setting-control"><input type="checkbox"></div></div></div>
     </div>
   </div>
-  <div class="group">
-    <div class="group-title">Terminal</div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Font Size</div><div class="setting-desc">Controls the font size of the terminal.</div></div>
-      <div class="setting-control"><input type="number" value="13" min="8" max="72"></div>
-    </div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Cursor Blink</div><div class="setting-desc">Controls whether the terminal cursor blinks.</div></div>
-      <div class="setting-control"><input type="checkbox" checked></div>
-    </div>
-  </div>
-  <div class="group">
-    <div class="group-title">Workbench</div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Color Theme</div><div class="setting-desc">Specifies the color theme.</div></div>
-      <div class="setting-control"><select><option>Dark+ (default dark)</option><option>Light+</option><option>Monokai</option><option>Solarized Dark</option></select></div>
-    </div>
-    <div class="setting">
-      <div class="setting-info"><div class="setting-label">Icon Theme</div><div class="setting-desc">Specifies the file icon theme.</div></div>
-      <div class="setting-control"><select><option>Seti</option><option>Material</option><option>None</option></select></div>
-    </div>
-  </div>
+
+  <script>
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+    document.querySelector('.search').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('.setting').forEach(s => {
+        const text = s.textContent.toLowerCase();
+        s.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  </script>
 </body>
 </html>

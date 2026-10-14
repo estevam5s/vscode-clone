@@ -1,7 +1,7 @@
 {
   "name": "vscode-clone",
-  "version": "1.0.0",
-  "description": "VS Code clone built from REA reverse engineering analysis",
+  "version": "2.0.0",
+  "description": "Complete VS Code clone — reverse-engineered from VS Code v1.139.1 using REA. Electron + Monaco + xterm.js + node-pty. 29 IPC channels, 4 context bridge APIs, Git SCM, search, debug, extensions, terminal, and full workbench.",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
@@ -9,7 +9,8 @@
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux"
+    "build:linux": "electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.vscode-clone.app",
@@ -17,6 +18,13 @@
     "directories": {
       "output": "dist"
     },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/README*",
+      "!node_modules/**/CHANGELOG*",
+      "!node_modules/**/test/**"
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": "dmg"
@@ -34,6 +42,8 @@
     "monaco-editor": "^0.52.2",
     "@xterm/xterm": "^5.5.0",
     "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/addon-search": "^0.15.0",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
